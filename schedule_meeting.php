@@ -1,12 +1,12 @@
 <?php
-// Include your database connection code here
 include('../conn.php');
 
 // Initialize variables
 $agenda = $startTime = $date = '';
 
 // Check if the form is submitted
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'])) {
+    $project_id=$_POST['request_id'];
     // Sanitize and validate form data
     $agenda = isset($_POST['agenda']) ? htmlspecialchars($_POST['agenda']) : '';
     $startTime = isset($_POST['start_time']) ? htmlspecialchars($_POST['start_time']) : '';
@@ -25,12 +25,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    echo '<script>alert("Meeting scheduled successfully!");</script>';
+   // echo '<script>alert("Meeting scheduled successfully!");</script>';
 }
 // Fetch employees and their designations from the 'employee' and 'designation' tables
 $sqlEmployees = "SELECT e.id, e.fname, d.desig_type
                  FROM employee e 
-                 JOIN designation d ON e.desig_id = d.desig_id";
+                 JOIN designation d ON e.desig_id = d.desig_id 
+                 WHERE e.id IN (SELECT DISTINCT pa.assigned_to FROM task pa WHERE pa.request_id = '$project_id')
+                 GROUP BY e.id";
 
 $resultEmployees = $conn->query($sqlEmployees);
 $employees = [];
@@ -43,9 +45,9 @@ if ($resultEmployees->num_rows > 0) {
 ?>
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en">    
 <head>
-    <style>
+<style>
         body {
         font-family: Arial, sans-serif;
         background-color: #f5f5f5;
@@ -112,7 +114,7 @@ if ($resultEmployees->num_rows > 0) {
         background-color: #0074D9;
         color: #fff;
         border: none;
-        padding: 12px 24px;
+        padding: 7px 10px;
         border-radius: 5px;
         cursor: pointer;
     }
@@ -239,9 +241,6 @@ if ($resultEmployees->num_rows > 0) {
             height: 0;
             width: 0;
         }
-
-       
-
         .custom-checkbox input:checked ~ .checkmark:after {
             content: "";
             position: absolute;
@@ -254,9 +253,6 @@ if ($resultEmployees->num_rows > 0) {
             border-width: 0 3px 3px 0;
             transform: rotate(45deg);
         }
-    </style>
-   
-
     </style>
     <script>
         let sidebarOpen = false;
@@ -285,15 +281,18 @@ if ($resultEmployees->num_rows > 0) {
 
 <!-- Sidebar -->
 <div id="mySidebar" class="sidebar">
+<a href="tdashboard.php">
+            <span class="dashboard-icon">📊</span> Dashboard
+        </a>
     <a href="add_task.php">
         <span class="icon">&#10010;</span> Add Task
     </a>
     <a href="view_status.php">
         <span class="icon">&#128196;</span> View Status
     </a>
-    <a href="schedule_meeting.php">
-        <span class="icon">&#9201;</span> Schedule Meeting
-    </a>
+    <a href="select_project.php">
+            <span class="icon">&#9201;</span> Sprint Meeting
+        </a>
     <a href="report.php">
         <span class="icon">&#128221;</span> Monitor Daily Progress
     </a>
@@ -304,9 +303,10 @@ if ($resultEmployees->num_rows > 0) {
         <span class="icon">📏</span> Calculate Functional Point
     </a>
 </div>
-
 <div class="container">
     <form action="" method="post">
+        <input type="hidden" name="request_id" value="<?php echo $_POST['request_id']; ?>">
+
         <label for="agenda">Agenda:</label>
         <input type="text" name="agenda" id="agenda" required><br><br>
 
@@ -328,9 +328,9 @@ if ($resultEmployees->num_rows > 0) {
         <label for="date">Date:</label>
         <input type="date" name="date" id="date" required><br><br>
 
-        <button type="submit" style="background-color: #007bff; color: #fff; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">Schedule Meeting</button>
+        <button type="submit">Schedule Meeting</button>
     </form>
-</div>
+    </div>
 
 </body>
 </html>
