@@ -2,105 +2,90 @@
 // Include your database connection code here
 include('../conn.php');
 
-// Get the email ID from the URL
-$email = isset($_GET['email']) ? $_GET['email'] : '';
-if (empty($email)) {
-    echo 'Email parameter is missing';
-    exit;
+// Check the connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
 }
 
-// Sanitize the email to prevent SQL injection
-$email = $conn->real_escape_string($email);
-
-// Fetch the employee ID corresponding to the email ID
-$sqlEmployeeId = "SELECT id FROM employee WHERE email = '$email'";
-$resultEmployeeId = $conn->query($sqlEmployeeId);
-
-if ($resultEmployeeId && $resultEmployeeId->num_rows > 0) {
-    $rowEmployeeId = $resultEmployeeId->fetch_assoc();
-    $empid = $rowEmployeeId['id'];
-
-    // Check if the request method is POST
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        // Get the data from the AJAX request
-        $date = isset($_POST['date']) ? $_POST['date'] : '';
-        $entry_time = isset($_POST['entry_time']) ? $_POST['entry_time'] : '';
-        $exit_time = ''; // Set exit time as empty for now
-        $status = isset($_POST['status']) ? $_POST['status'] : '';
-
-        // Insert the attendance record into the 'attendance' table
-        $sql = "INSERT INTO attendance (empid, date, entry_time, exit_time, status)
-                VALUES ($empid, '$date', '$entry_time', '$exit_time', '$status')";
-
-        if ($conn->query($sql) === TRUE) {
-            echo 'Attendance marked successfully!';
-        } else {
-            echo 'Error marking attendance: ' . $conn->error;
-        }
-
-        // Close the database connection
-        //$conn->close();
-    } else {
-        // Default values for demonstration
-        $date = date('Y-m-d');
-        $entry_time = date('H:i:s');
-        $exit_time = '';
-        $status = 'Present';
+// Process clock in/out
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $email = $_GET['email'] ?? '';
+    if (empty($email)) {
+        echo "Email parameter is missing";
+        exit;
     }
-} else {
-    echo 'Employee not found';
-    exit;
-}
-?>
 
+    // Fetch the employee ID based on the email
+    $empid_query = "SELECT id FROM employee WHERE email = '$email'";
+    $empid_result = $conn->query($empid_query);
+
+    if ($empid_result->num_rows > 0) {
+        $row = $empid_result->fetch_assoc();
+        $empid = $row['id'];
+
+        $current_time = date('H:i:s');
+        $is_within_entry_time = $current_time >= '08:30:00' && $current_time <= '09:30:00';
+        $is_within_exit_time = $current_time >= '16:00:00' && $current_time <= '17:00:00'; // Changed to 5:00 PM
+
+        if (isset($_POST['clock_in_out'])) {
+            if ($is_within_entry_time) {
+                // Check if the employee has already clocked in today
+                $check_query = "SELECT * FROM attendance WHERE empid = $empid AND DATE(date) = CURDATE()";
+                $check_result = $conn->query($check_query);
+
+                if ($check_result->num_rows > 0) {
+                    // Employee has already clocked in, update exit time
+                    $update_query = "UPDATE attendance SET exit_time = NOW() WHERE empid = $empid AND DATE(date) = CURDATE()";
+                    if ($conn->query($update_query) === TRUE) {
+                        echo "Clock out successful";
+                    } else {
+                        echo "Error updating exit time: " . $conn->error;
+                    }
+                } else {
+                    // Employee has not clocked in yet, insert new record
+                    $insert_query = "INSERT INTO attendance (empid, date, entry_time, exit_time, status) VALUES ($empid, CURDATE(), NOW(), NOW(), 'Present')";
+                    if ($conn->query($insert_query) === TRUE) {
+                        echo "Clock in successful";
+                    } else {
+                        echo "Error inserting attendance record: " . $conn->error;
+                    }
+                }
+            } else {
+                echo "Attendance cannot be marked at this time for clock in";
+            }
+        } elseif (isset($_POST['clock_out'])) {
+            if ($is_within_exit_time) {
+                // Update the exit time for the current date
+                $update_query = "UPDATE attendance SET exit_time = NOW() WHERE empid = $empid AND DATE(date) = CURDATE()";
+                if ($conn->query($update_query) === TRUE) {
+                    echo "Clock out successful";
+                } else {
+                    echo "Error updating exit time: " . $conn->error;
+                }
+            } else {
+                echo "Attendance cannot be marked at this time for clock out";
+            }
+        } else {
+            echo "Invalid operation";
+        }
+    } else {
+        echo "Employee not found";
+    }
+}
+
+// Close connection
+$conn->close();
+?>
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mark Attendance</title>
+    <title>Attendance Management System</title>
 </head>
 <body>
-    <div class="main-content">
-        <h2 style="color: #333; text-align: center;">Mark Attendance</h2>
-        
-        <!-- Hidden input fields to store entry time, date, and status -->
-        <input type="hidden" id="date" name="date">
-        <input type="hidden" id="entry_time" name="entry_time">
-        <input type="hidden" id="status" name="status">
-
-        <button onclick="fillAndMarkAttendance()">Mark Attendance</button>
-    </div>
-
-    <script>
-    function fillAndMarkAttendance() {
-        const date = new Date().toISOString().slice(0, 10); // Get current date in YYYY-MM-DD format
-        const entry_time = new Date().toLocaleTimeString('en-US', { hour12: false });
-        const status = 'Present'; // Assuming always marking present
-
-        // Fill the hidden input fields with the values
-        document.getElementById('date').value = date;
-        document.getElementById('entry_time').value = entry_time;
-        document.getElementById('status').value = status;
-
-        // Send an AJAX request to attendance.php to insert the attendance record
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', 'attendance.php', true);
-        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState === XMLHttpRequest.DONE) {
-                if (xhr.status === 200) {
-                    alert('Attendance marked successfully!');
-                } else {
-                    alert('Error marking attendance. Please try again.');
-                }
-            }
-        };
-        xhr.send(`date=${date}&entry_time=${entry_time}&status=${status}`);
-    }
-    </script>
+    <h2>Attendance Management System</h2>
+    <form method="post" action="">
+        <button type="submit" name="clock_in_out">Clock In</button>
+        <button type="submit" name="clock_out">Clock Out</button>
+    </form>
 </body>
 </html>
-
-
