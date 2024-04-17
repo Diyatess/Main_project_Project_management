@@ -171,54 +171,84 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["request_id"])) {
             background-color: #0056a7;
         }
         /* Style the sidebar */
-   .sidebar {
-            height: 100%;
-            width: 250px;
-            position: fixed;
-            top: 76px;
-            left: -250px;
-            background-color: #333;
-            overflow-x: hidden;
-            transition: 0.5s;
-            text-align: left;
-            padding-top: 60px;
-            color: #fff;
-        }
+        .sidebar {
+    height: 100%;
+    width: 250px;
+    position: fixed;
+    top: 76px;
+    left: 0;
+    background-color: #333;
+    overflow-x: hidden;
+    transition: 0.5s;
+    text-align: left;
+    padding-top: 60px;
+    color: #fff;
+    z-index: 1;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Add a box shadow for depth */
+}
 
-        .sidebar a {
-            padding: 8px 16px;
-            text-decoration: none;
-            font-size: 18px;
-            color: #fff;
-            display: block;
-            transition: 0.3s;
-            margin: 15px 0;
-        }
+/* Sidebar links */
+.sidebar a {
+    padding: 10px 15px;
+    text-decoration: none;
+    font-size: 18px;
+    color: #fff;
+    display: block;
+    transition: 0.3s;
+}
 
-        .sidebar a:hover {
-            background-color: #00D2FC;
-            color: #fff;
-        }
+/* Change color on hover */
+.sidebar a:hover {
+    background-color: #555;
+}
 
-        .openbtn {
-            font-size: 30px;
-            cursor: pointer;
-            position: fixed;
-            z-index: 1;
-            top: 10px;
-            left: 10px;
-            color: #00d2fc;
-        }
-        .icon {
-            margin-right: 10px;
-            font-size: 20px;
-        }
+/* Add active class to the current link (highlight it) */
+.sidebar a.active {
+    background-color: #007bff;
+}
 
-        /* Add a background color for the links */
-        .sidebar a {
-            background-color: #333;
-        }
+/* Close button */
+.closebtn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 30px;
+    cursor: pointer;
+}
 
+/* Add a black background color to the top navigation */
+.topnav {
+    background-color: #333;
+    overflow: hidden;
+}
+
+/* Style the topnav links */
+.topnav a {
+    float: left;
+    display: block;
+    color: white;
+    text-align: center;
+    padding: 14px 20px;
+    text-decoration: none;
+}
+
+/* Change color on hover */
+.topnav a:hover {
+    background-color: #ddd;
+    color: black;
+}
+
+/* Updated CSS for the main content area */
+.container {
+    max-width: calc(100% - 250px); /* Subtract the width of the sidebar from the max-width of the container */
+    margin-left: 250px; /* Set the margin-left to the width of the sidebar */
+    padding: 20px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    transition: margin-left 0.5s; /* Add a transition for smooth animation */
+}
         /* On hover, the background color and text color change */
         .sidebar a:hover {
             background-color: #00D2FC;
@@ -239,23 +269,41 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["request_id"])) {
             background-color: #777;
         }
     </style>
-     <script>
-        let sidebarOpen = false;
+    <script>
+        // Logout function
+        function logout() {
+            // Clear the session or perform any other necessary logout tasks
+            // Disable the ability to go back
+            history.pushState(null, null, window.location.href);
+            window.onpopstate = function (event) {
+                history.go(1);
+            };
 
-function toggleSidebar() {
-    const sidebar = document.getElementById("mySidebar");
-    if (sidebarOpen) {
-        sidebar.style.left = "-250px";
-    } else {
-        sidebar.style.left = "0";
+            // Redirect to the login page
+            window.location.replace("../login_client.php");
+        }
+
+    // Disable caching to prevent back button from showing the logged-in page
+    window.onload = function () {
+        window.history.forward();
+        document.onkeydown = function (e) {
+            if (e.keyCode === 9) {
+                return false;
+            }
+        };
     }
-    sidebarOpen = !sidebarOpen;
-}
+
+    // Redirect to the login page if the user tries to go back
+    window.addEventListener('popstate', function (event) {
+        window.location.replace("../login_client.php");
+    });
     </script>
+     
 </head>
 <body>
     <header>
-    <a href="tdashboard.php" class="back-button" style="float: right;">Back</a>
+     <!-- Logout button -->
+     <button onclick="logout()" type="button" style="float: right;">Logout</button>
         <h1>Send a Message to Client</h1>
     </header>
 <!-- Sidebar -->
@@ -270,8 +318,11 @@ function toggleSidebar() {
         <span class="icon">&#128196;</span> View Status
     </a>
     <a href="select_project.php">
-            <span class="icon">&#9201;</span> Sprint Meeting
-        </a>
+            <span class="icon">&#9201;</span> Daily Standup Meeting
+    </a>
+    <a href="client_meeting.php">
+            <span class="icon">&#9201;</span> Sprint Review
+    </a>
     <a href="report.php">
         <span class="icon">&#128221;</span> Monitor Daily Progress
     </a>
@@ -281,9 +332,16 @@ function toggleSidebar() {
     <a href="functional.php">
         <span class="icon">📏</span> Calculate Functional Point
     </a>
+    <a href="view_leave.php">
+        <span class="icon"></span> View Leave
+    </a>
+    <a href="salary.php">
+        <span class="icon"></span>Salary
+    </a>
+    <a href="deploy.php">
+        <span class="icon"></span>Deploy Project
+    </a>
     </div>
-
-    <div class="openbtn" onclick="toggleSidebar()">&#9776;</div>
 
     <div class="container">
 

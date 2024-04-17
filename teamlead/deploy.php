@@ -1,28 +1,82 @@
 <?php
 session_start();
-include('../conn.php'); 
+include('../conn.php');
 
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["request_id"])) {
+    $request_id = $_POST["request_id"];
 
-// Fetch client requests and their associated client's contact from the database
-$sql = "SELECT pr.request_id, pr.project_name, pr.project_description, pr.client_email, c.contact FROM project_requests pr 
-JOIN client c ON pr.client_email = c.email WHERE pr.status = 'Pending';";
-$result = $conn->query($sql);
+    // Check if a deployment file is uploaded
+    if (isset($_FILES["deployment_file"]) && $_FILES["deployment_file"]["error"] == 0) {
+        $allowed_extensions = ['zip'];
+        $deployment_file_name = $_FILES["deployment_file"]["name"];
+        $deployment_file_tmp = $_FILES["deployment_file"]["tmp_name"];
+        $deployment_file_extension = pathinfo($deployment_file_name, PATHINFO_EXTENSION);
 
-$requests = [];
-if ($result->num_rows > 0) {
-    while ($row = $result->fetch_assoc()) {
-        $requests[] = $row;
+        // Check if the file extension is allowed
+        if (in_array(strtolower($deployment_file_extension), $allowed_extensions)) {
+            // Specify the directory to store deployment files
+            $deployment_file_destination = "../deployment/" . $deployment_file_name;
+
+            // Move the uploaded deployment file to the destination directory
+            if (move_uploaded_file($deployment_file_tmp, $deployment_file_destination)) {
+                // Deployment file uploaded successfully, now store its details in the database
+
+                // Insert deployment file details into the `deployment_data` table
+                $sql_insert_deployment = "INSERT INTO deployment_data (project_id, file_path) VALUES (?, ?)";
+
+                if ($stmt_insert_deployment = $conn->prepare($sql_insert_deployment)) {
+                    $stmt_insert_deployment->bind_param("is", $request_id, $deployment_file_destination);
+
+                    // Check if deployment file details inserted successfully
+                    if ($stmt_insert_deployment->execute()) {
+                        // Deployment file details inserted successfully
+                        echo '<script>alert("Deployment file uploaded successfully!");</script>';
+                        
+                        // Redirect to the feedback form page
+                        echo '<script>window.location.href = "feedback_form.php?project_id=' . $request_id . '";</script>';
+                        exit; // Exit to prevent further execution
+                    } else {
+                        // Handle the error in inserting deployment file details
+                        echo "Error inserting deployment file details: " . $stmt_insert_deployment->error;
+                    }
+                } else {
+                    // Handle the database connection error for deployment file insert operation
+                    echo "Error: " . $conn->error;
+                }
+            } else {
+                // Handle deployment file upload error
+                echo "Error uploading the deployment file.";
+            }
+        } else {
+            // Alert the user that only ZIP files are allowed
+            echo '<script>alert("Only ZIP files are allowed.");</script>';
+        }
+    } else {
+        // Alert the user to attach a ZIP file
+        echo '<script>alert("Please attach a ZIP file.");</script>';
+    }
+}
+
+// Fetch projects for dropdown
+$sql = "SELECT pr.request_id, pr.project_name, c.cname AS client_name FROM project_requests pr JOIN client c ON pr.client_email = c.email";
+$result = mysqli_query($conn, $sql);
+$projects = [];
+if (mysqli_num_rows($result) > 0) {
+    while ($row = mysqli_fetch_assoc($result)) {
+        $projects[] = $row;
     }
 }
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Team Lead Profile</title>
+    <title>Deployment</title>
     <style>
+
       .sidebar {
     height: 100%;
     width: 250px;
@@ -133,10 +187,7 @@ if ($result->num_rows > 0) {
             color: #fff;
             text-align: center; /* Center the heading text */
         }
-        .profile-info {
-            display: flex;
-            align-items: center;
-        }
+       
         .task-list {
             list-style: none;
             padding: 0;
@@ -189,21 +240,30 @@ if ($result->num_rows > 0) {
         font-size: 12px;
         transition: background-color 0.3s ease;
     }
+       /* Unique styles for the form */
+       
 
-    .reply-button {
-        background-color: #4CAF50; /* Green */
+    /* Unique styles for the buttons */
+    #uploadButton {
+        background-color: #34ab14;
+        color: #fff;
+        font-size: 16px;
+        font-weight: bold;
+        text-transform: uppercase;
+        padding: 6px 22px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s;
     }
 
-    .proposal-button {
-        background-color: #008CBA; /* Blue */
+    #uploadButton:hover {
+        background-color: #3f7631;
     }
-
-    .send-proposal-button {
-        background-color: #f44336; /* Red */
-    }
-
-    .action-button:hover {
-        background-color: #555;
+    .custom-select {
+        padding: 5px;
+        font-size: 14px;
+        border-radius: 5px;
     }
 
     </style>
@@ -245,31 +305,34 @@ if ($result->num_rows > 0) {
     <header>
         <!-- Logout button -->
         <button onclick="logout()" type="button" style="float: right;">Logout</button>
-        <h1>Team Lead page</h1>
+        <h1>Deployment </h1>
     </header>
     <div class="container">
-
-<!--client request-->
-<h2>Client Requests</h2>
-    <ul class="task-list">
-        <?php if (empty($requests)) : ?>
-            <li class="task-item">
-                <strong>No new requests at the moment.</strong>
-            </li>
-        <?php else : ?>
-            <?php foreach ($requests as $request) : ?>
-                <li class="task-item">
-                    <strong>Project Name:</strong> <?php echo $request['project_name']; ?><br>
-                    <strong>Project Description:</strong> <?php echo $request['project_description']; ?><br>
-                    <strong>Client Email:</strong> <?php echo $request['client_email']; ?><br>
-                    <strong>Client Contact:</strong> <?php echo $request['contact']; ?><br>
-                    <a href="message.php?request_id=<?php echo $request['request_id']; ?>" class="action-button reply-button">Reply</a>
-                    <a href="create-proposal.php?request_id=<?php echo $request['request_id']; ?>" class="action-button proposal-button">Proposal</a>
-                    <a href="send-proposal.php?request_id=<?php echo $request['request_id']; ?>" class="action-button send-proposal-button">Send Proposal</a>
-                </li>
+    <form  action="" method="post" enctype="multipart/form-data" onsubmit="return validateForm()">
+    <h2>Upload Deployment File</h2><br><br>
+    <div>
+        <label for="project_id">Select Project:</label>
+        <select name="request_id" id="project_id" class="custom-select" required>
+            <option value="" selected disabled>Select a project</option>
+            <?php foreach ($projects as $project): ?>
+                <option value="<?php echo $project['request_id']; ?>"><?php echo $project['project_name'] . ' - ' . $project['client_name']; ?></option>
             <?php endforeach; ?>
-        <?php endif; ?>
-    </ul>
+        </select><br><br>
+    </div>
+    <div>
+        <label for="deployment_file">Deployment File (ZIP only):</label>
+        <input type="file" name="deployment_file" id="deployment_file" accept=".zip" required>
+    </div><br><br>
+    <div>
+        <button id="uploadButton" type="submit">Upload Deployment File</button>
+    </div>
+</form>
+    </div>
+
+    <?php
+    // Close the connection after all operations are completed
+    $conn->close();
+    ?>
 <!-- Sidebar -->
 <div id="mySidebar" class="sidebar">
     <a href="tdashboard.php">   
@@ -306,7 +369,40 @@ if ($result->num_rows > 0) {
         <span class="icon"></span>Deploy Project
     </a>
     </div>
-
 </body>
-</html>
+<script>
+    function validateForm() {
+        var project_id = document.getElementById("project_id").value;
+        var fileInput = document.getElementById("deployment_file");
+        var file = fileInput.files[0];
 
+        // Check if a project is selected
+        if (project_id == "") {
+            alert("Please select a project.");
+            return false;
+        }
+
+        // Check if a file is selected
+        if (!file) {
+            alert("Please select a file.");
+            return false;
+        }
+
+        // Check if the file is a ZIP file
+        var fileType = file.type;
+        if (fileType != "application/zip") {
+            alert("Only ZIP files are allowed.");
+            return false;
+        }
+
+        // Check the file size (optional)
+        var maxSize = 10 * 1024 * 1024; // 10MB
+        if (file.size > maxSize) {
+            alert("File size exceeds the limit (10MB).");
+            return false;
+        }
+
+        return true;
+    }
+</script>
+</html>

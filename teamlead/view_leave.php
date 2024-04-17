@@ -6,51 +6,35 @@ include('../conn.php');
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
-// Fetch unique dates for daily reports
-$sqlDates = "SELECT DISTINCT report_date FROM daily_reports ORDER BY report_date DESC";
-$resultDates = $conn->query($sqlDates);
 
-// Initialize variables
-$selected_date = null;
-$report_data = "";
-
-// Check if date is selected
-if (isset($_POST['selected_date'])) {
-    $selected_date = $_POST['selected_date'];
-
-    if ($selected_date !== "") {
-        // Prepare the SQL statement to prevent SQL injection
-        $stmt = $conn->prepare("SELECT employee.fname, employee.lname, daily_reports.report_content FROM daily_reports JOIN employee ON daily_reports.emp_id = employee.id WHERE daily_reports.report_date = ? ORDER BY employee.fname ASC");
-        $stmt->bind_param("s", $selected_date);
-        $stmt->execute();
-        $result = $stmt->get_result();
-
-        if ($result->num_rows > 0) {
-            // Display the selected date at the top of the table
-        $report_data .= "<h2>Reports for " . date("M d, Y", strtotime($selected_date)) . "</h2>";
-
-            // Display the daily reports in tabular format
-            $report_data .= "<table id='table' border='1'>";
-            $report_data .= "<tr><th>Employee Name</th><th>Daily Report</th></tr>";
-            while ($row = $result->fetch_assoc()) {
-                $report_data .= "<tr>";
-                $report_data .= "<td>" . $row['fname'] . " " . $row['lname'] . "</td>";
-                $report_data .= "<td>" . $row['report_content'] . "</td>";
-                $report_data .= "</tr>";
-            }
-            $report_data .= "</table>";
-        } else {
-            $report_data = "<p>No daily reports found for selected date.</p>";
-        }
-
-        // Close the statement
-        $stmt->close();
+// Assume the form is submitted with POST method
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    // Handle approval/rejection logic here
+    // Example:
+    $leaveId = $_POST['leave_id'];
+    $status = $_POST['status'];
+    $update_query = "UPDATE leave_requests SET status = ? WHERE id = ?";
+    $stmt = $conn->prepare($update_query);
+    $stmt->bind_param("si", $status, $leaveId);
+    if ($stmt->execute()) {
+        echo '<script>alert("Leave request updated successfully.")</script>';
     } else {
-        $report_data = "<p>Please select a date.</p>";
+        echo "Error updating leave request: " . $conn->error;
     }
+    $stmt->close();
 }
 
-// Close the database connection
+// Fetch leave details
+$sqlLeaveDetails = "SELECT lr.id, e.fname AS employee_name, lr.start_date, lr.end_date, lr.leave_type, lr.reason, lr.status, lr.apply_status
+                    FROM leave_requests lr
+                    JOIN employee e ON lr.empid = e.id WHERE lr.apply_status=1";
+
+$resultLeaveDetails = $conn->query($sqlLeaveDetails);
+if (!$resultLeaveDetails) {
+    die("Error fetching leave details: " . $conn->error);
+}
+
+// Close connection
 $conn->close();
 ?>
 
@@ -158,15 +142,6 @@ $conn->close();
             text-align: center;
             padding: 24px;
         }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #fff;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
         h1 {
             font-size: 32px;
             color: #fff;
@@ -228,7 +203,7 @@ $conn->close();
         }
         /* Container styles */
         .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
             padding: 20px;
             background-color: #f9f9f9;
@@ -280,7 +255,7 @@ $conn->close();
         }
 
         th, td {
-            padding: 10px;
+            padding: 7px;
             border: 1px solid #ddd;
             text-align: left;
         }
@@ -349,8 +324,9 @@ $conn->close();
             <span> TaskMasters Hub</span>
         </a>
     <header>
- <!-- Logout button -->
- <button onclick="logout()" type="button" style="float: right;">Logout</button>        <h2>Daily Report</h2>
+        <!-- Logout button -->
+ <button onclick="logout()" type="button" style="float: right;">Logout</button>    
+        <h2>Leave Request</h2>
     </header>
 <!-- Sidebar -->
 <div id="mySidebar" class="sidebar">
@@ -388,18 +364,51 @@ $conn->close();
         <span class="icon"></span>Deploy Project
     </a>
     </div>
+
     <div class="container">
+        <h2>Leave Requests</h2>
+        <table border="1" cellspacing="0" cellpadding="5" style="width: 100%;">
+            <thead>
+                <tr>
+                    <th>Employee Name</th>
+                    <th>Start Date</th>
+                    <th>End Date</th>
+                    <th>Leave Type</th>
+                    <th>Reason</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php
+                if ($resultLeaveDetails->num_rows > 0) {
+                    while ($rowLeaveDetails = $resultLeaveDetails->fetch_assoc()) {
+                        ?>
+                        <tr>
+                            <td><?php echo $rowLeaveDetails['employee_name']; ?></td>
+                            <td><?php echo $rowLeaveDetails['start_date']; ?></td>
+                            <td><?php echo $rowLeaveDetails['end_date']; ?></td>
+                            <td><?php echo $rowLeaveDetails['leave_type']; ?></td>
+                            <td><?php echo $rowLeaveDetails['reason']; ?></td>
+                            <td><?php echo $rowLeaveDetails['status']; ?></td>
+                            <td>
+                            <form method="post" action="">
+                            <input type="hidden" name="leave_id" value="<?php echo $rowLeaveDetails['id']; ?>">
+                                        <button type="submit" name="status" value="approved" style="background-color: green; color: white;" <?php echo $rowLeaveDetails['status'] == 'approved' ? 'disabled' : ''; ?>>Accept</button>
+                                        <button type="submit" name="status" value="rejected" style="background-color: red; color: white;" <?php echo $rowLeaveDetails['status'] == 'rejected' ? 'disabled' : ''; ?>>Reject</button>
+                            </form>
 
-        <h2>Select a Date:</h2>
-        <form id="dateForm" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" method="post">
-            <input type="date" id="selected_date" name="selected_date"><br><br>
-            <input type="submit" id="submit" value="Get Daily Reports">    
-        </form>
-
-        <div id="dailyReports">
-            <br>
-            <?php echo $report_data; ?>
-        </div>
+                            </td>
+                        </tr>
+                        <?php
+                    }
+                } else {
+                    echo "<tr><td colspan='6'>No leave requests found.</td></tr>";
+                }
+                ?>
+            </tbody>
+        </table>
     </div>
+
 </body>
 </html>

@@ -44,16 +44,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'])) {
         padding: 24px;
     }
 
-    .container {
-        max-width: 800px;
-        margin: 20px auto;
-        padding: 20px;
-        background-color: #fff;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    }
-
     h1 {
         font-size: 32px;
         color: #fff;
@@ -92,43 +82,88 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'])) {
 
     /* Sidebar styles */
     .sidebar {
-        height: 100%;
-        width: 250px;
-        position: fixed;
-        top: 76px;
-        left: -250px;
-        background-color: #333;
-        overflow-x: hidden;
-        transition: 0.5s;
-        text-align: left;
-        padding-top: 60px;
-        color: #fff;
-    }
+    height: 100%;
+    width: 251px;
+    position: fixed;
+    top: 70px;
+    left: 0;
+    background-color: #333;
+    overflow-x: hidden;
+    transition: 0.5s;
+    text-align: left;
+    padding-top: 60px;
+    color: #fff;
+    z-index: 1;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Add a box shadow for depth */
+}
 
-    .sidebar a {
-        padding: 8px 16px;
-        text-decoration: none;
-        font-size: 18px;
-        color: #fff;
-        display: block;
-        transition: 0.3s;
-        margin: 15px 0;
-    }
+/* Sidebar links */
+.sidebar a {
+    padding: 6px 13px;
+    text-decoration: none;
+    font-size: 18px;
+    color: #fff;
+    display: block;
+    transition: 0.3s;
+}
 
-    .sidebar a:hover {
-        background-color: #00D2FC;
-        color: #fff;
-    }
+/* Change color on hover */
+.sidebar a:hover {
+    background-color: #555;
+}
 
-    .openbtn {
-        font-size: 30px;
-        cursor: pointer;
-        position: fixed;
-        z-index: 1;
-        top: 10px;
-        left: 10px;
-        color: #00d2fc;
-    }
+/* Add active class to the current link (highlight it) */
+.sidebar a.active {
+    background-color: #007bff;
+}
+
+/* Close button */
+.closebtn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 30px;
+    cursor: pointer;
+}
+
+/* Add a black background color to the top navigation */
+.topnav {
+    background-color: #333;
+    overflow: hidden;
+}
+
+/* Style the topnav links */
+.topnav a {
+    float: left;
+    display: block;
+    color: white;
+    text-align: center;
+    padding: 14px 20px;
+    text-decoration: none;
+}
+
+/* Change color on hover */
+.topnav a:hover {
+    background-color: #ddd;
+    color: black;
+}
+
+/* Updated CSS for the main content area */
+.container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        /* On hover, the background color and text color change */
+        .sidebar a:hover {
+            background-color: #00D2FC;
+            color: #fff;
+        }
     a {
         text-decoration: none;
         color: #0074D9;
@@ -183,17 +218,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'])) {
 
     </style>
     <script>
-        let sidebarOpen = false;
+        // Logout function
+        function logout() {
+            // Clear the session or perform any other necessary logout tasks
+            // Disable the ability to go back
+            history.pushState(null, null, window.location.href);
+            window.onpopstate = function (event) {
+                history.go(1);
+            };
 
-        function toggleSidebar() {
-            const sidebar = document.getElementById("mySidebar");
-            if (sidebarOpen) {
-                sidebar.style.left = "-250px";
-            } else {
-                sidebar.style.left = "0";
-            }
-            sidebarOpen = !sidebarOpen;
+            // Redirect to the login page
+            window.location.replace("../login_client.php");
         }
+
+    // Disable caching to prevent back button from showing the logged-in page
+    window.onload = function () {
+        window.history.forward();
+        document.onkeydown = function (e) {
+            if (e.keyCode === 9) {
+                return false;
+            }
+        };
+    }
+
+    // Redirect to the login page if the user tries to go back
+    window.addEventListener('popstate', function (event) {
+        window.location.replace("../login_client.php");
+    });
     </script>
 </head>
 <body>
@@ -202,8 +253,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'])) {
         <span> TaskMasters Hub</span>
     </a>
 <header>
-    <div class="openbtn" onclick="toggleSidebar()">&#9776;</div>
-    <button onclick="window.location.href='tdashboard.php'" type="button" style="float: right;">Back</button>
+     <!-- Logout button -->
+     <button onclick="logout()" type="button" style="float: right;">Logout</button>
     <h1>Schedule Meeting</h1>
 </header>
 
@@ -219,8 +270,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'])) {
         <span class="icon">&#128196;</span> View Status
     </a>
     <a href="select_project.php">
-            <span class="icon">&#9201;</span> Sprint Meeting
-        </a>
+            <span class="icon">&#9201;</span> Daily Standup Meeting
+    </a>
+    <a href="client_meeting.php">
+            <span class="icon">&#9201;</span> Sprint Review
+    </a>
     <a href="report.php">
         <span class="icon">&#128221;</span> Monitor Daily Progress
     </a>
@@ -229,6 +283,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'])) {
     </a>
     <a href="functional.php">
         <span class="icon">📏</span> Calculate Functional Point
+    </a>
+    <a href="view_leave.php">
+        <span class="icon"></span> View Leave
+    </a>
+    <a href="salary.php">
+        <span class="icon"></span>Salary
+    </a>
+    <a href="deploy.php">
+        <span class="icon"></span>Deploy Project
     </a>
     </div>
 <div class="container">

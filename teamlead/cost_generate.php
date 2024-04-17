@@ -14,9 +14,8 @@ if (isset($_SESSION['proposalContent'])) {
     $plainTextContent = strip_tags($proposalContent);
     echo $plainTextContent;
 } else {
-    // Handle the case where the content is not available
-    alert("No proposal content found.");
+    // Output a message indicating that the content is not found
+    echo "No proposal content found.";
+    exit; // Stop further execution
 }
-
-
 ?>

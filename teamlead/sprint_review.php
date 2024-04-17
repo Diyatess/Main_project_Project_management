@@ -1,4 +1,3 @@
-
 <?php
 include('../conn.php');
 
@@ -7,7 +6,7 @@ $agenda = $startTime = $date = '';
 
 // Check if the form is submitted
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'])) {
-    $project_id=$_POST['request_id'];
+    $project_id = $_POST['request_id'];
     // Sanitize and validate form data
     $agenda = isset($_POST['agenda']) ? htmlspecialchars($_POST['agenda']) : '';
     $startTime = isset($_POST['start_time']) ? htmlspecialchars($_POST['start_time']) : '';
@@ -16,18 +15,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'])) {
     // Get selected employees
     $selectedEmployees = isset($_POST['employees']) ? $_POST['employees'] : [];
 
-    // Insert the meeting schedule into the 'meetings' table for each selected employee
-    foreach ($selectedEmployees as $employee_id) {
-        $sql = "INSERT INTO meetings (agenda, employee_id, start_time, date)
-                VALUES ('$agenda', $employee_id, '$startTime', '$date')";
+    // Fetch existing meetings for the selected date and time
+    $sqlMeetings = "SELECT * FROM meetings WHERE date = '$date' AND start_time = '$startTime'";
+    $resultMeetings = $conn->query($sqlMeetings);
+    $meetings = [];
 
-        if ($conn->query($sql) !== TRUE) {
-            echo "Error: " . $sql . "<br>" . $conn->error;
+    if ($resultMeetings === false) {
+        echo "Error fetching meetings: " . $conn->error;
+    } else {
+        if ($resultMeetings->num_rows > 0) {
+            while ($rowMeeting = $resultMeetings->fetch_assoc()) {
+                $meetings[] = $rowMeeting;
+            }
         }
     }
 
-   // echo '<script>alert("Meeting scheduled successfully!");</script>';
+    // Insert the meeting schedule into the 'meetings' table for each selected employee
+    foreach ($selectedEmployees as $employee_id) {
+        $stmt = $conn->prepare("INSERT INTO meetings (agenda, employee_id, start_time, date) VALUES (?, ?, ?, ?)");
+        $stmt->bind_param("siss", $agenda, $employee_id, $startTime, $date);
+
+        if ($stmt->execute() !== TRUE) {
+            echo "Error: " . $stmt->error;
+        }
+    }
+
+    // Get selected clients
+    $selectedClients = isset($_POST['clients']) ? $_POST['clients'] : [];
+
+    // Insert the meeting schedule into the 'meetings' table for each selected client
+    foreach ($selectedClients as $client_id) {
+        $stmt = $conn->prepare("INSERT INTO meetings (agenda, client_id, start_time, date) VALUES (?, ?, ?, ?)");
+        $stmt->bind_param("siss", $agenda, $client_id, $startTime, $date);
+
+        if ($stmt->execute() !== TRUE) {
+            echo "Error: " . $stmt->error;
+        }
+    }
+
+    //echo '<script>alert("Meeting scheduled successfully!");</script>';
 }
+
 // Fetch employees and their designations from the 'employee' and 'designation' tables
 $sqlEmployees = "SELECT e.id, e.fname, d.desig_type
                  FROM employee e 
@@ -38,9 +66,28 @@ $sqlEmployees = "SELECT e.id, e.fname, d.desig_type
 $resultEmployees = $conn->query($sqlEmployees);
 $employees = [];
 
-if ($resultEmployees->num_rows > 0) {
-    while ($rowEmployee = $resultEmployees->fetch_assoc()) {
-        $employees[] = $rowEmployee;
+if ($resultEmployees === false) {
+    echo "Error fetching employees: " . $conn->error;
+} else {
+    if ($resultEmployees->num_rows > 0) {
+        while ($rowEmployee = $resultEmployees->fetch_assoc()) {
+            $employees[] = $rowEmployee;
+        }
+    }
+}
+
+// Fetch clients
+$sqlClients = "SELECT id, cname, email FROM client WHERE request_id= $project_id ";
+$resultClients = $conn->query($sqlClients);
+$clients = [];
+
+if ($resultClients === false) {
+    echo "Error fetching clients: " . $conn->error;
+} else {
+    if ($resultClients->num_rows > 0) {
+        while ($rowClient = $resultClients->fetch_assoc()) {
+            $clients[] = $rowClient;
+        }
     }
 }
 ?>
@@ -133,7 +180,7 @@ if ($resultEmployees->num_rows > 0) {
 
 /* Sidebar links */
 .sidebar a {
-    padding: 6px 5px;
+    padding: 10px 15px;
     text-decoration: none;
     font-size: 18px;
     color: #fff;
@@ -324,7 +371,7 @@ if ($resultEmployees->num_rows > 0) {
 <header>
  <!-- Logout button -->
  <button onclick="logout()" type="button" style="float: right;">Logout</button>
-     <h1>Schedule Meeting</h1>
+<h1>Schedule Meeting</h1>
 </header>
 
 <!-- Sidebar -->
@@ -360,34 +407,115 @@ if ($resultEmployees->num_rows > 0) {
         <span class="icon"></span>Deploy Project
     </a>
     </div>
-<div class="container">
-    <form action="" method="post">
-        <input type="hidden" name="request_id" value="<?php echo $_POST['request_id']; ?>">
+    <div class="container">
+        <form id="meetingForm" action="" method="post">
+            <input type="hidden" name="request_id" value="<?php echo $_POST['request_id']; ?>">
 
-        <label for="agenda">Agenda:</label>
-        <input type="text" name="agenda" id="agenda" required><br><br>
+            <label for="agenda">Agenda:</label>
+            <input type="text" name="agenda" id="agenda" required><br>
+            <span id="agendaError" class="error-message"></span><br>
 
-        <label>Employees:</label><br>
-        <?php foreach ($employees as $employee): ?>
+            <label>Employees:</label><br>
+            <?php foreach ($employees as $employee): ?>
             <div class="checkbox-container">
                 <label for="employee_<?php echo $employee['id']; ?>">
                     <?php echo $employee['fname'] . '(' . $employee['desig_type'].')'; ?>
-                    <input type="checkbox" name="employees[]" id="employee_<?php echo $employee['id']; ?>" value="<?php echo $employee['id']; ?>">
+                    <input type="checkbox" name="employees[]" id="employee_<?php echo $employee['id']; ?>"
+                        value="<?php echo $employee['id']; ?>">
                     <span class="checkmark"></span>
                 </label>
             </div>
-        <?php endforeach; ?>
-        <br>
+            <?php endforeach; ?>
+            <br>
 
-        <label for="start_time">Start Time:</label>
-        <input type="time" name="start_time" id="start_time" required><br><br>
+            <label>Client:</label><br>
+            <?php foreach ($clients as $client): ?>
+            <div class="checkbox-container">
+                <label for="client_<?php echo $client['id']; ?>">
+                    <?php echo $client['cname'] . '(' . $client['email'] . ')'; ?>
+                    <input type="checkbox" name="clients[]" id="client_<?php echo $client['id']; ?>"
+                        value="<?php echo $client['id']; ?>">
+                    <span class="checkmark"></span>
+                </label>
+            </div>
+            <?php endforeach; ?>
+            <br>
 
-        <label for="date">Date:</label>
-        <input type="date" name="date" id="date" required><br><br>
+            <label for="start_time">Start Time:</label>
+            <input type="time" name="start_time" id="start_time" required><br>
+            <span id="startTimeError" class="error-message"style="color:red"></span><br>
 
-        <button type="submit">Schedule Meeting</button>
-    </form>
+            <label for="date">Date:</label>
+            <input type="date" name="date" id="date" required><br>
+            <span id="dateError" class="error-message" style="color:red"></span><br>
+
+            <button type="submit">Schedule Meeting</button>
+        </form>
     </div>
 
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const form = document.getElementById("meetingForm");
+            const agendaInput = document.getElementById("agenda");
+            const startTimeInput = document.getElementById("start_time");
+            const dateInput = document.getElementById("date");
+
+            function validateAgenda() {
+                const agenda = agendaInput.value.trim();
+                if (agenda === "") {
+                    document.getElementById("agendaError").textContent = "Agenda cannot be empty.";
+                } else {
+                    document.getElementById("agendaError").textContent = "";
+                }
+            }
+
+            function validateStartTime() {
+                const startTime = startTimeInput.value.trim();
+                const currentTime = new Date();
+                const selectedTime = new Date(`01/01/2000 ${startTime}`);
+
+                if (startTime === "") {
+                    document.getElementById("startTimeError").textContent = "Start time cannot be empty.";
+                } else if (selectedTime <= currentTime) {
+                    document.getElementById("startTimeError").textContent = "Start time must be in the future.";
+                } else if (selectedTime.getHours() < (currentTime.getHours() + 1)) {
+                    document.getElementById("startTimeError").textContent = "Start time must be at least one hour after the current time.";
+                } else {
+                    document.getElementById("startTimeError").textContent = "";
+                }
+            }
+
+
+            function validateDate() {
+                const currentDate = new Date().toISOString().split('T')[0];
+                const selectedDate = dateInput.value;
+                if (selectedDate < currentDate) {
+                    document.getElementById("dateError").textContent = "Meeting cannot be scheduled in the past.";
+                } else {
+                    document.getElementById("dateError").textContent = "";
+                }
+            }
+
+            form.addEventListener("input", function (event) {
+                if (event.target === agendaInput) {
+                    validateAgenda();
+                } else if (event.target === startTimeInput) {
+                    validateStartTime();
+                } else if (event.target === dateInput) {
+                    validateDate();
+                }
+            });
+
+            form.addEventListener("submit", function (event) {
+                validateAgenda();
+                validateStartTime();
+                validateDate();
+
+                if (!agendaInput.checkValidity() || !startTimeInput.checkValidity() || !dateInput.checkValidity()) {
+                    event.preventDefault();
+                }
+            });
+        });
+    </script>
 </body>
 </html>

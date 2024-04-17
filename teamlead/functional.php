@@ -55,52 +55,48 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     $ch = curl_init();
 
-        curl_setopt($ch, CURLOPT_URL, 'https://api.openai.com/v1/chat/completions');
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_URL, 'https://api.openai.com/v1/chat/completions');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_POST, 1);
 
-        $postdata = array(
-            "model" => "gpt-3.5-turbo",
-            "messages" => [
-                array(
-                    "role" => "system",
-                    "content" => "cerate a timeline and cost estimation for software proposal if total months is $totalMonths and total cost is $totalCostINR Indian rupees"
-                ),
-                
-            ],
-            "temperature" => 0.7, // Adjust temperature for creativity
-            "max_tokens" => 1500, // Limit the proposal length
-        );
-        $postdata = json_encode($postdata);
+    $postdata = array(
+        "model" => "gpt-3.5-turbo",
+        "messages" => [
+            array(
+                "role" => "system",
+                "content" => "create a timeline and cost estimation for software proposal if total months is " . round($totalMonths) . " and total cost is ₹" . number_format($totalCostINR, 2) . " Indian rupees"
+            ),
 
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $postdata);
+        ],
+        "temperature" => 0.7, // Adjust temperature for creativity
+        "max_tokens" => 1500, // Limit the proposal length
+    );
+    $postdata = json_encode($postdata);
 
-        $headers = array();
-        $headers[] = 'Content-Type: application/json';
-        $headers[] = 'Authorization: Bearer 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'; // Replace with your OpenAI API key
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $postdata);
 
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    $headers = array();
+    $headers[] = 'Content-Type: application/json';
+    $headers[] = 'Authorization: Bearer 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'; // Replace with your OpenAI API key
 
-        $result = curl_exec($ch);
-        if (curl_errno($ch)) {
-            echo 'Error: ' . curl_error($ch);
-        }
-        curl_close($ch);
-        $result = json_decode($result, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
-        // Extract the proposal content from the response
-       // Extract the proposal content from the response
-       $proposalContent = $result['choices'][0]['message']['content'];
-       
-       // Start a session (if not already started)
-       session_start();
+    $result = curl_exec($ch);
+    if (curl_errno($ch)) {
+        echo 'Error: ' . curl_error($ch);
+    }
+    curl_close($ch);
+    $result = json_decode($result, true);
 
-       // Store the proposal content in a session variable
-       $_SESSION['proposalContent'] = $proposalContent;
+    // Extract the proposal content from the response
+    $proposalContent = $result['choices'][0]['message']['content'];
 
-       // Redirect to the second page to display the content
-       header('Location: cost_generate.php');
-       exit;
+    // Store the proposal content in a session variable
+    $_SESSION['proposalContent'] = $proposalContent;
+
+    // Redirect to the second page to display the content
+    header('Location: cost_generate.php');
+    exit;
 }
 ?>
 
@@ -112,16 +108,135 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Calculate Total Months</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 0;
-        }
+            body {
+        font-family: Arial, sans-serif;
+        background-color: #f5f5f5;
+        margin: 0;
+        padding: 0;
+    }
 
-        /* Add or modify styles as needed */
-        .main-content {
-            max-width: 800px;
+    header {
+        background-color: #333;
+        color: #fff;
+        text-align: center;
+        padding: 24px;
+    }
+
+    h1 {
+        font-size: 32px;
+        color: #fff;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    form {
+        padding: 20px;
+        border-radius: 8px;
+    }
+
+    h2 {
+        font-size: 24px;
+        margin-bottom: 20px;
+        color: #333;
+    }
+
+    label {
+        font-weight: bold;
+        display: block;
+        margin-bottom: 8px;
+    }
+
+    input[type="text"],
+    input[type="time"],
+    input[type="number"],
+    input[type="date"] {
+        width: calc(100% - 24px);
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        margin-bottom: 10px;
+    }
+
+    button[type="submit"] {
+        background-color: #0074D9;
+        color: #fff;
+        border: none;
+        padding: 7px 10px;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+    button[type="submit"]:hover {
+        background-color: #0056a7;
+    }
+
+    /* Sidebar styles */
+    .sidebar {
+    height: 100%;
+    width: 250px;
+    position: fixed;
+    top: 76px;
+    left: 0;
+    background-color: #333;
+    overflow-x: hidden;
+    transition: 0.5s;
+    text-align: left;
+    padding-top: 60px;
+    color: #fff;
+    z-index: 1;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Add a box shadow for depth */
+}
+
+/* Sidebar links */
+.sidebar a {
+    padding: 9px 9px;
+    text-decoration: none;
+    font-size: 18px;
+    color: #fff;
+    display: block;
+    transition: 0.3s;
+}
+
+/* Change color on hover */
+.sidebar a:hover {
+    background-color: #555;
+}
+
+/* Add active class to the current link (highlight it) */
+.sidebar a.active {
+    background-color: #007bff;
+}
+/* Close button */
+.closebtn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 30px;
+    cursor: pointer;
+}
+/* Add a black background color to the top navigation */
+.topnav {
+    background-color: #333;
+    overflow: hidden;
+}
+/* Style the topnav links */
+.topnav a {
+    float: left;
+    display: block;
+    color: white;
+    text-align: center;
+    padding: 14px 20px;
+    text-decoration: none;
+}
+/* Change color on hover */
+.topnav a:hover {
+    background-color: #ddd;
+    color: black;
+}
+
+/* Updated CSS for the main content area */
+.container {
+    max-width: 800px;
             margin: 0 auto;
             padding: 20px;
             background-color: #fff;
@@ -130,137 +245,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
 
-        /* Add or modify styles as needed */
-        .container {
-            display: flex;
-            justify-content: space-between;
-            padding: 20px;
-        }
-
-        .sidebar {
-            height: 100%;
-            width: 250px;
-            position: fixed;
-            top: 76px;
-            left: 0;
-            background-color: #333;
-            overflow-x: hidden;
-            transition: 0.5s;
-            text-align: left;
-            padding-top: 60px;
-            color: #fff;
-        }
-
-        .sidebar a {
-            padding: 8px 16px;
-            text-decoration: none;
-            font-size: 18px;
-            color: #fff;
-            display: block;
-            transition: 0.3s;
-            margin: 15px 0;
-        }
-
-        .sidebar a:hover {
-            background-color: #00D2FC;
-            color: #fff;
-        }
-
-        h1 {
-            font-size: 32px;
-            color: #fff;
-            text-align: center;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 8px;
-        }
-
-        input {
-            width: 100%;
-            padding: 8px;
-            margin-bottom: 16px;
-            box-sizing: border-box;
-        }
-
-        button {
-            background-color: #007BFF;
-            color: #fff;
-            padding: 10px;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-        }
-
-        button:hover {
-            background-color: #0056b3;
-        }
-
-        /* Style the sidebar */
-        .sidebar {
-            height: 100%;
-            width: 250px;
-            position: fixed;
-            top: 76px;
-            left: -250px;
-            background-color: #333;
-            overflow-x: hidden;
-            transition: 0.5s;
-            text-align: left;
-            padding-top: 60px;
-            color: #fff;
-        }
-
-        .sidebar a {
-            padding: 8px 16px;
-            text-decoration: none;
-            font-size: 18px;
-            color: #fff;
-            display: block;
-            transition: 0.3s;
-            margin: 15px 0;
-        }
-
-        .sidebar a:hover {
-            background-color: #00D2FC;
-            color: #fff;
-        }
-
-        .openbtn {
-            font-size: 30px;
-            cursor: pointer;
-            position: fixed;
-            z-index: 1;
-            top: 10px;
-            left: 10px;
-            color: #00d2fc;
-        }
-
-        .icon {
-            margin-right: 10px;
-            font-size: 20px;
-        }
-
-        /* Add a background color for the links */
-        .sidebar a {
-            background-color: #333;
-        }
-
         /* On hover, the background color and text color change */
         .sidebar a:hover {
             background-color: #00D2FC;
             color: #fff;
         }
-
-        a {
+    a {
             text-decoration: none;
             color: #0074D9;
         }
-
         a.navbar-brand {
-            color: black; /* Set the text color to black */
-            text-decoration: none; /* Remove the underline */
+            color: black;  /* Set the text color to black */
+            text-decoration: none;  /* Remove the underline */
             font-weight: bold;
             color: #fff;
             font-size: 24px;
@@ -268,24 +264,68 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             padding: 0px;
 
         }
-
         img {
             width: 39px;
             height: 39px;
         }
+        button{
+            block-size: 27px;
+            background: white;
+            border: black;
+            font-style: revert-layer;
+        }
 
-        header {
-            background-color: #333;
-            color: #fff;
-            text-align: center;
-            padding: 24px;
-        }
-        .error-message {
-            color: red;
-            margin-top: 5px;
-        }
+    .icon {
+        margin-right: 10px;
+        font-size: 20px;
+    }
+
+    /* Back button style */
+    .back-button {
+        background-color: #555;
+        color: #fff;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+        margin-top: 20px;
+    }
+
+    .back-button:hover {
+        background-color: #777;
+    }
     </style>
- 
+    <script>
+        // Logout function
+        function logout() {
+            // Clear the session or perform any other necessary logout tasks
+            // Disable the ability to go back
+            history.pushState(null, null, window.location.href);
+            window.onpopstate = function (event) {
+                history.go(1);
+            };
+
+            // Redirect to the login page
+            window.location.replace("../login_client.php");
+        }
+
+    // Disable caching to prevent back button from showing the logged-in page
+    window.onload = function () {
+        window.history.forward();
+        document.onkeydown = function (e) {
+            if (e.keyCode === 9) {
+                return false;
+            }
+        };
+    }
+
+    // Redirect to the login page if the user tries to go back
+    window.addEventListener('popstate', function (event) {
+        window.location.replace("../login_client.php");
+    });
+    </script>
 </head>
 
 <body>
@@ -294,35 +334,46 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <span> TaskMasters Hub</span>
     </a>
     <header>  
-    <div class="openbtn" onclick="toggleSidebar()">&#9776;</div>
-        <button onclick="window.location.href='tdashboard.php'" type="button" style="float: right;">Back</button>
-        <h1>Calculate Total Months</h1>
+ <!-- Logout button -->
+ <button onclick="logout()" type="button" style="float: right;">Logout</button>        <h1>Calculate Total Months</h1>
     </header>
-  <!-- Sidebar -->
-<div id="mySidebar" class="sidebar">
+   <!-- Sidebar -->
+   <div id="mySidebar" class="sidebar">
     <a href="tdashboard.php">   
-        <span class="dashboard-icon">📊</span> Dashboard
+        <span class="dashboard-icon">📊</span>Dashboard
     </a>
     <a href="add_task.php">
-        <span class="icon">&#10010;</span> Add Task
+        <span class="icon">&#10010;</span>Add Task
     </a>
     <a href="view_status.php">
-        <span class="icon">&#128196;</span> View Status
+        <span class="icon">&#128196;</span>View Status
     </a>
     <a href="select_project.php">
-            <span class="icon">&#9201;</span> Sprint Meeting
-        </a>
+            <span class="icon">&#9201;</span>Daily Standup Meeting
+    </a>
+    <a href="client_meeting.php">
+            <span class="icon">&#9201;</span>Sprint Review
+    </a>
     <a href="report.php">
-        <span class="icon">&#128221;</span> Monitor Daily Progress
+        <span class="icon">&#128221;</span>Monitor Daily Progress
     </a>
     <a href="view_projects.php">
-        <span class="icon">&#128213;</span> View Approved/Denied Projects
+        <span class="icon">&#128213;</span>View Approved/Denied Projects
     </a>
     <a href="functional.php">
-        <span class="icon">📏</span> Calculate Functional Point
+        <span class="icon">📏</span>Calculate Functional Point
+    </a>
+    <a href="view_leave.php">
+        <span class="icon"></span>View Leave
+    </a>
+    <a href="salary.php">
+        <span class="icon"></span>Salary
+    </a>
+    <a href="deploy.php">
+        <span class="icon"></span>Deploy Project
     </a>
     </div>
-    <div class="main-content">
+    <div class="container">
     <form action="<?php echo $_SERVER['PHP_SELF']; ?>" method="post" onsubmit="return validateForm()">
     <label for="externalInputs">External Inputs (comma-separated):</label>
     <input type="text" name="externalInputs" id="externalInputs" placeholder="e.g., input1, input2" required>
@@ -351,6 +402,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <button type="submit">Calculate</button>
 </form>
 
+
 <?php
 // Display the result if available
 if (isset($totalMonths) && isset($totalCostINR) && isset($functionalPoints)) {
@@ -372,6 +424,19 @@ if (isset($totalMonths) && isset($totalCostINR) && isset($functionalPoints)) {
         }
         sidebarOpen = !sidebarOpen;
     }
+
+    function updateSelectedEmployeeId() {
+        const checkboxes = document.querySelectorAll('input[name="employees[]"]');
+        const selectedEmployeeId = [...checkboxes].filter(checkbox => checkbox.checked).map(checkbox => checkbox.value);
+        document.getElementById('selected_employee_id').value = selectedEmployeeId.join(',');
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const checkboxes = document.querySelectorAll('input[name="employees[]"]');
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', updateSelectedEmployeeId);
+        });
+    });
 
     function validateForm() {
         const externalInputs = document.getElementById("externalInputs").value;
@@ -411,6 +476,5 @@ if (isset($totalMonths) && isset($totalCostINR) && isset($functionalPoints)) {
         return true;
     }
 </script>
-
 </body>
 </html>

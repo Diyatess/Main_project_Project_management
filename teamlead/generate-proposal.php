@@ -1,5 +1,6 @@
 <?php
 include('../conn.php'); 
+//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
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Process user input
@@ -41,7 +42,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         $headers = array();
         $headers[] = 'Content-Type: application/json';
-        $headers[] = 'Authorization: Bearer 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'; // Replace with your OpenAI API key
+        $headers[] = 'Authorization: Bearer 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'; // Replace with your OpenAI API key
 
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
@@ -60,11 +61,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
        session_start();
 
        // Store the proposal content in a session variable
-       $_SESSION['proposalContent'] = $proposalContent;
+        $_SESSION['proposalContent'] = $proposalContent;
 
-       // Redirect to the second page to display the content
-       header('Location: display_proposal.php');
-       exit;
+        // Debugging statement
+        echo "Session variable set: ".$_SESSION['proposalContent'];
+
+        // Redirect to the second page to display the content
+        header('Location: display_proposal.php');
+        exit;
+
    }
 }
 ?>

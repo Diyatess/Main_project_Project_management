@@ -29,35 +29,6 @@
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
 
-        .sidebar {
-            height: 100%;
-            width: 250px;
-            position: fixed;
-            top: 76px;
-            left: 0;
-            background-color: #333;
-            overflow-x: hidden;
-            transition: 0.5s;
-            text-align: left;
-            padding-top: 60px;
-            color: #fff;
-        }
-
-        .sidebar a {
-            padding: 8px 16px;
-            text-decoration: none;
-            font-size: 18px;
-            color: #fff;
-            display: block;
-            transition: 0.3s;
-            margin: 15px 0;
-        }
-
-        .sidebar a:hover {
-            background-color: #00D2FC;
-            color: #fff;
-        }
-
         h1 {
             font-size: 32px;
             color: #fff;
@@ -91,42 +62,87 @@
 
         /* Style the sidebar */
         .sidebar {
-            height: 100%;
-            width: 250px;
-            position: fixed;
-            top: 76px;
-            left: -250px;
-            background-color: #333;
-            overflow-x: hidden;
-            transition: 0.5s;
-            text-align: left;
-            padding-top: 60px;
-            color: #fff;
-        }
+    height: 100%;
+    width: 258px;
+    position: fixed;
+    top: 76px;
+    left: 0;
+    background-color: #333;
+    overflow-x: hidden;
+    transition: 0.5s;
+    text-align: left;
+    padding-top: 60px;
+    color: #fff;
+    z-index: 1;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Add a box shadow for depth */
+}
 
-        .sidebar a {
-            padding: 8px 16px;
-            text-decoration: none;
-            font-size: 18px;
-            color: #fff;
-            display: block;
-            transition: 0.3s;
-            margin: 15px 0;
-        }
+/* Sidebar links */
+.sidebar a {
+    padding: 10px 15px;
+    text-decoration: none;
+    font-size: 18px;
+    color: #fff;
+    display: block;
+    transition: 0.3s;
+}
 
+/* Change color on hover */
+.sidebar a:hover {
+    background-color: #555;
+}
+
+/* Add active class to the current link (highlight it) */
+.sidebar a.active {
+    background-color: #007bff;
+}
+
+/* Close button */
+.closebtn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 30px;
+    cursor: pointer;
+}
+
+/* Add a black background color to the top navigation */
+.topnav {
+    background-color: #333;
+    overflow: hidden;
+}
+
+/* Style the topnav links */
+.topnav a {
+    float: left;
+    display: block;
+    color: white;
+    text-align: center;
+    padding: 14px 20px;
+    text-decoration: none;
+}
+
+/* Change color on hover */
+.topnav a:hover {
+    background-color: #ddd;
+    color: black;
+}
+
+/* Updated CSS for the main content area */
+.container {
+    max-width: calc(100% - 250px); /* Subtract the width of the sidebar from the max-width of the container */
+    margin-left: 250px; /* Set the margin-left to the width of the sidebar */
+    padding: 20px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    transition: margin-left 0.5s; /* Add a transition for smooth animation */
+}
+        /* On hover, the background color and text color change */
         .sidebar a:hover {
             background-color: #00D2FC;
             color: #fff;
-        }
-
-        .openbtn {
-            font-size: 30px;
-            cursor: pointer;
-            position: fixed;
-            z-index: 1;
-            top: 10px;
-            left: 10px;
-            color: #00d2fc;
         }
 
         .icon {

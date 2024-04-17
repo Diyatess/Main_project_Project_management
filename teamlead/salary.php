@@ -1,52 +1,89 @@
-
 <?php
 include('../conn.php');
 
 // Initialize variables
-$agenda = $startTime = $date = '';
+$employees = [];
 
-// Check if the form is submitted
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'])) {
-    $project_id=$_POST['request_id'];
-    // Sanitize and validate form data
-    $agenda = isset($_POST['agenda']) ? htmlspecialchars($_POST['agenda']) : '';
-    $startTime = isset($_POST['start_time']) ? htmlspecialchars($_POST['start_time']) : '';
-    $date = isset($_POST['date']) ? htmlspecialchars($_POST['date']) : '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['employee'])) {
+    $employee_id = $_POST['employee'];
 
-    // Get selected employees
-    $selectedEmployees = isset($_POST['employees']) ? $_POST['employees'] : [];
+    // Check if salary has already been paid for this month
+    $current_month = date('Y-m');
+    $checkSql = "SELECT * FROM salary WHERE employee_id = '$employee_id' AND DATE_FORMAT(payment_date, '%Y-%m') = '$current_month'";
+    $checkResult = $conn->query($checkSql);
 
-    // Insert the meeting schedule into the 'meetings' table for each selected employee
-    foreach ($selectedEmployees as $employee_id) {
-        $sql = "INSERT INTO meetings (agenda, employee_id, start_time, date)
-                VALUES ('$agenda', $employee_id, '$startTime', '$date')";
+    if ($checkResult && $checkResult->num_rows > 0) {
+        echo '<script>alert("Salary has already been paid this month....")</script>';
+    } else {
+        // Fetch the base salary based on the employee's designation
+        $sql = "SELECT e.id, e.fname, d.salary 
+                FROM employee e 
+                JOIN designation d ON e.desig_id = d.desig_id 
+                WHERE e.id = '$employee_id'";
+        $result = $conn->query($sql);
 
-        if ($conn->query($sql) !== TRUE) {
-            echo "Error: " . $sql . "<br>" . $conn->error;
+        if ($result && $result->num_rows > 0) {
+            $row = $result->fetch_assoc();
+            $base_salary = $row['salary'];
+
+            // Calculate the number of leaves taken by the employee in the current month
+            $leaveSql = "SELECT COUNT(*) AS leave_count FROM leave_requests WHERE empid = '$employee_id' AND MONTH(start_date) = MONTH(CURRENT_DATE()) and status='approved'";
+            $leaveResult = $conn->query($leaveSql);
+            $leave_type = '';
+
+            if ($leaveResult && $leaveResult->num_rows > 0) {
+                $leaveRow = $leaveResult->fetch_assoc();
+                $leaveCount = $leaveRow['leave_count'];
+
+                // Calculate the extra leaves beyond 3
+                $extra_leaves = max(0, $leaveCount - 3);
+
+                // Calculate the final salary after deducting 1000 for each extra leave
+                $final_salary = $base_salary - ($extra_leaves * 1000);
+                if (in_array($leave_type, array("Comp-off", "Marriage Leave", "Paternity Leave", "Bereavement Leave"))) {
+                    $final_salary = $base_salary;
+                }
+
+                // Insert salary details into the 'salary' table
+                $payment_date = date('Y-m-d');
+                $insertSql = "INSERT INTO salary (employee_id, amount, payment_date) 
+                          VALUES ('$employee_id', '$final_salary', '$payment_date')";
+                if ($conn->query($insertSql) === TRUE) {
+                    echo '<script>alert("Salary added successfully...")</script>';
+                } else {
+                    echo "Error adding salary for employee ID $employee_id: " . $conn->error . "<br>";
+                }
+            } else {
+                echo "Error counting leaves: " . $conn->error;
+            }
+        } else {
+            echo "Employee not found with ID $employee_id.<br>";
         }
     }
-
-   // echo '<script>alert("Meeting scheduled successfully!");</script>';
 }
-// Fetch employees and their designations from the 'employee' and 'designation' tables
-$sqlEmployees = "SELECT e.id, e.fname, d.desig_type
-                 FROM employee e 
-                 JOIN designation d ON e.desig_id = d.desig_id 
-                 WHERE e.id IN (SELECT DISTINCT pa.assigned_to FROM task pa WHERE pa.request_id = '$project_id')
-                 GROUP BY e.id";
 
+// Fetch employee data for the form
+$sqlEmployees = "SELECT e.id, e.fname, d.desig_type 
+                 FROM employee e 
+                 JOIN designation d ON e.desig_id = d.desig_id";
 $resultEmployees = $conn->query($sqlEmployees);
 $employees = [];
 
-if ($resultEmployees->num_rows > 0) {
+if ($resultEmployees && $resultEmployees->num_rows > 0) {
     while ($rowEmployee = $resultEmployees->fetch_assoc()) {
         $employees[] = $rowEmployee;
     }
 }
+
+$conn->close();
 ?>
 
 <!DOCTYPE html>
-<html lang="en">    
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salary Disribute</title>
 <head>
 <style>
         body {
@@ -62,7 +99,6 @@ if ($resultEmployees->num_rows > 0) {
         text-align: center;
         padding: 24px;
     }
-
     h1 {
         font-size: 32px;
         color: #fff;
@@ -117,7 +153,7 @@ if ($resultEmployees->num_rows > 0) {
     /* Sidebar styles */
     .sidebar {
     height: 100%;
-    width: 250px;
+    width: 257px;
     position: fixed;
     top: 76px;
     left: 0;
@@ -133,7 +169,7 @@ if ($resultEmployees->num_rows > 0) {
 
 /* Sidebar links */
 .sidebar a {
-    padding: 6px 5px;
+    padding: 10px 15px;
     text-decoration: none;
     font-size: 18px;
     color: #fff;
@@ -150,6 +186,7 @@ if ($resultEmployees->num_rows > 0) {
 .sidebar a.active {
     background-color: #007bff;
 }
+
 /* Close button */
 .closebtn {
     position: absolute;
@@ -158,11 +195,13 @@ if ($resultEmployees->num_rows > 0) {
     font-size: 30px;
     cursor: pointer;
 }
+
 /* Add a black background color to the top navigation */
 .topnav {
     background-color: #333;
     overflow: hidden;
 }
+
 /* Style the topnav links */
 .topnav a {
     float: left;
@@ -172,6 +211,7 @@ if ($resultEmployees->num_rows > 0) {
     padding: 14px 20px;
     text-decoration: none;
 }
+
 /* Change color on hover */
 .topnav a:hover {
     background-color: #ddd;
@@ -285,8 +325,13 @@ if ($resultEmployees->num_rows > 0) {
             border-width: 0 3px 3px 0;
             transform: rotate(45deg);
         }
+        .custom-select {
+        padding: 5px;
+        font-size: 16px;
+        border-radius: 5px;
+    }
     </style>
-    <script>
+<script>
         // Logout function
         function logout() {
             // Clear the session or perform any other necessary logout tasks
@@ -324,10 +369,9 @@ if ($resultEmployees->num_rows > 0) {
 <header>
  <!-- Logout button -->
  <button onclick="logout()" type="button" style="float: right;">Logout</button>
-     <h1>Schedule Meeting</h1>
+     <h1>Distribute Salary</h1>
 </header>
 
-<!-- Sidebar -->
 <div id="mySidebar" class="sidebar">
     <a href="tdashboard.php">   
         <span class="dashboard-icon">📊</span> Dashboard
@@ -340,7 +384,10 @@ if ($resultEmployees->num_rows > 0) {
     </a>
     <a href="select_project.php">
             <span class="icon">&#9201;</span> Daily Standup Meeting
-        </a>
+    </a>
+    <a href="client_meeting.php">
+            <span class="icon">&#9201;</span> Sprint Review
+    </a>
     <a href="report.php">
         <span class="icon">&#128221;</span> Monitor Daily Progress
     </a>
@@ -360,34 +407,16 @@ if ($resultEmployees->num_rows > 0) {
         <span class="icon"></span>Deploy Project
     </a>
     </div>
-<div class="container">
-    <form action="" method="post">
-        <input type="hidden" name="request_id" value="<?php echo $_POST['request_id']; ?>">
-
-        <label for="agenda">Agenda:</label>
-        <input type="text" name="agenda" id="agenda" required><br><br>
-
-        <label>Employees:</label><br>
-        <?php foreach ($employees as $employee): ?>
-            <div class="checkbox-container">
-                <label for="employee_<?php echo $employee['id']; ?>">
-                    <?php echo $employee['fname'] . '(' . $employee['desig_type'].')'; ?>
-                    <input type="checkbox" name="employees[]" id="employee_<?php echo $employee['id']; ?>" value="<?php echo $employee['id']; ?>">
-                    <span class="checkmark"></span>
-                </label>
-            </div>
-        <?php endforeach; ?>
-        <br>
-
-        <label for="start_time">Start Time:</label>
-        <input type="time" name="start_time" id="start_time" required><br><br>
-
-        <label for="date">Date:</label>
-        <input type="date" name="date" id="date" required><br><br>
-
-        <button type="submit">Schedule Meeting</button>
-    </form>
+    <div class="container">
+        <form method="post">
+            <label for="employee">Select Employee:</label>
+            <select name="employee" id="employee" class="custom-select">
+                <?php foreach ($employees as $employee): ?>
+                    <option value="<?php echo $employee['id']; ?>"><?php echo $employee['fname']; ?></option>
+                <?php endforeach; ?>
+            </select>
+            <button type="submit">Distribute Salary</button>
+        </form>
     </div>
-
 </body>
 </html>
