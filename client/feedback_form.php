@@ -2,126 +2,67 @@
 session_start();
 include('../conn.php');
 
-if (isset($_GET['email'])) {
-    $email = $_GET['email'];
+// Get the email from the URL
+if(isset($_GET["email"])) {
+    $email = $_GET["email"];
 } else {
     echo "Email not provided in the URL.";
     exit; // Exit if email is not provided
 }
 
-// Join project_request table using client email
-$sql = "SELECT pr.*, t.* 
-        FROM project_requests pr
-        JOIN task t ON pr.request_id = t.request_id
-        WHERE pr.client_email = '$email'";
+// Fetch project ID from project_requests table
+$sql_project_id = "SELECT request_id FROM project_requests WHERE client_email = ?";
+if ($stmt_project_id = $conn->prepare($sql_project_id)) {
+    $stmt_project_id->bind_param("s", $email);
+    $stmt_project_id->execute();
+    $stmt_project_id->bind_result($project_id);
+    $stmt_project_id->fetch();
+    $stmt_project_id->close();
 
-$result = $conn->query($sql);
-
-$percentage = 0;
-$totalTasks = $result->num_rows;
-$completedTasks = 0;
-
-if ($totalTasks > 0) {
-    // Output data of each row
-    while ($row = $result->fetch_assoc()) {
-        // Output task details
-       // echo "Task ID: " . $row["task_id"] . "<br>";
-        //echo "Task Name: " . $row["task_description"] . "<br>";
-        // Check if the task is completed
-        if ($row["status"] == 'Completed') {
-            $completedTasks++;
-        }
+    if (!$project_id) {
+        echo "Project ID not found for the provided email.";
+        exit;
     }
-
-    // Calculate percentage
-    $percentage = ($completedTasks / $totalTasks) * 100;
-
-    // Display percentage
-    //echo "Project progress: " . round($percentage, 2) . "%";
 } else {
-    
+    echo "Error fetching project ID: " . $conn->error;
+    exit;
 }
-// Check if there is a file for the client in the deployment_data table
-$sql_check_file = "SELECT dd.file_path, fd.status
-FROM deployment_data dd
-JOIN project_requests pr ON dd.project_id = pr.request_id
-LEFT JOIN feedback_data fd ON dd.project_id = fd.project_id
-WHERE pr.client_email = ?";
-$stmt_check_file = $conn->prepare($sql_check_file);
-$stmt_check_file->bind_param("s", $email);
-$stmt_check_file->execute();
-$result_check_file = $stmt_check_file->get_result();
-$hasFile = $result_check_file->num_rows > 0;
 
-// Determine if the buttons should be disabled based on file existence and status
-$downloadDisabled = $hasFile ? '' : 'disabled';
-$feedbackDisabled = !$hasFile || ($result_check_file->fetch_assoc()['status'] == 1) ? 'disabled' : '';
+// Store the project ID in session
+$_SESSION["project_id"] = $project_id;
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["comments"]) && isset($_POST["rating"])) {
+    $comments = $_POST["comments"];
+    $rating = $_POST["rating"];
 
-$stmt_check_file->close();
+    // Insert feedback into the `feedback_data` table
+    $sql_insert_feedback = "INSERT INTO feedback_data (project_id, comments, rating, status) VALUES (?, ?, ?,1)";
 
-mysqli_close($conn);
+    if ($stmt_insert_feedback = $conn->prepare($sql_insert_feedback)) {
+        $stmt_insert_feedback->bind_param("isi", $_SESSION["project_id"], $comments, $rating);
+
+        if ($stmt_insert_feedback->execute()) {
+            // Feedback inserted successfully
+            echo '<script>alert("Feedback submitted successfully!");</script>';
+            echo '<script>window.location.href = "client_dashboard.php?email=' . $email . '";</script>';
+            exit; // Exit to prevent further execution
+        } else {
+            // Handle the error in inserting feedback
+            echo "Error inserting feedback: " . $stmt_insert_feedback->error;
+        }
+    } else {
+        // Handle the database connection error for feedback insert operation
+        echo "Error: " . $conn->error;
+    }
+}
 ?>
-
 
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <title>Client Dashboard</title>
-    <link rel="stylesheet" href="st.css"> 
-       
-    <script>
-       
-    // Logout function
-    function logout() {
-            // Clear the session or perform any other necessary logout tasks
-            // Disable the ability to go back
-            history.pushState(null, null, window.location.href);
-            window.onpopstate = function (event) {
-                history.go(1);
-            };
-
-            // Redirect to the login page
-            window.location.replace("../login_client.php");
-        }
-
-    // Disable caching to prevent back button from showing the logged-in page
-    window.onload = function () {
-        window.history.forward();
-        document.onkeydown = function (e) {
-            if (e.keyCode === 9) {
-                return false;
-            }
-        };
-    }
-
-    // Redirect to the login page if the user tries to go back
-    window.addEventListener('popstate', function (event) {
-        window.location.replace("../login_client.php");
-    });
-
-     
-</script>
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feedback Form</title>
     <style>
-    .red-dot {
-    position: relative;
-    text-decoration: none; /* Remove the underline */
-    color: #007BFF; /* Link text color */
-}
-
-.red-dot::before {
-    content: '\2022'; /* Unicode character for a bullet (•) */
-    position: absolute;
-    top: -5px; /* Adjust the vertical position of the dot */
-    left: 0;
-    color: red; /* Red color for the dot */
-}
-
-.red-dot:hover {
-    text-decoration: underline; /* Underline on hover */
-    color: #0056b3; /* Change link text color on hover */
-}
    /* Style the sidebar */
    .sidebar {
     height: 100%;
@@ -317,17 +258,103 @@ mysqli_close($conn);
             background-color: #333;
             color: #fff;
         }
-    </style>
+    /* Style for labels */
+    label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+    }
+
+    /* Style for text area */
+    textarea {
+        width: 100%;
+        padding: 5px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        resize: vertical;
+    }
+
+    /* Style for number input */
+    input[type="number"] {
+        width: 100%;
+        padding: 5px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        box-sizing: border-box; /* Ensure padding is included in width */
+    }
+
+    /* Style for submit button */
+    input[type="submit"] {
+        display: block;
+        width: 100%;
+        padding: 10px;
+        background-color: #007bff;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+
+    input[type="submit"]:hover {
+        background-color: #0056b3;
+    }
+
+</style>
+<script>
+  // Logout function
+  function logout() {
+      // Clear the session or perform any other necessary logout tasks
+      // Disable the ability to go back
+      history.pushState(null, null, window.location.href);
+      window.onpopstate = function (event) {
+          history.go(1);
+      };
+
+      // Redirect to the login page
+      window.location.replace("../login_client.php");
+  }
+
+// Disable caching to prevent back button from showing the logged-in page
+window.onload = function () {
+  window.history.forward();
+  document.onkeydown = function (e) {
+      if (e.keyCode === 9) {
+          return false;
+      }
+  };
+}
+
+// Redirect to the login page if the user tries to go back
+window.addEventListener('popstate', function (event) {
+  window.location.replace("../login_client.php");
+});
+</script>
 </head>
 <body>
+<a class="navbar-brand" href="../index.php" style="float: left;">
+            <img src="../images/logo.png" alt="" />
+            <span> TaskMasters Hub</span>
+        </a>
     <header>
-    <button onclick="logout()" type="button" style="float: right;">Logout</button>
-        <a class="navbar-brand" href="../index.php" style="float: left;">
-                <img src="../images/logo.png" alt="" />
-                <span> TaskMasters Hub</span>
-            </a>
-            <h2 style="color: #fff;padding: 26px;">Client Dashboard</h2>
+        <!-- Logout button -->
+        <button onclick="logout()" type="button" style="float: right;">Logout</button>
+        <h2>Feedback</h2>
     </header>
+    <div class="container">
+    <form action="" method="post">
+    <label for="comments">Comments:</label>
+    <textarea name="comments" id="comments" cols="30" rows="5" required></textarea><br><br>
+    <label for="rating">Rating (1-5):</label>
+    <input type="number" name="rating" id="rating" min="1" max="5" required><br><br>
+    <input type="submit" value="Submit Feedback">
+</form>
+   </div>
+    <?php
+    // Close the connection after all operations are completed
+    $conn->close();
+    ?>
+    <!-- Sidebar -->
     <div id="mySidebar" class="sidebar">
         <a href="client_dashboard.php?email=<?php echo $email; ?>">Dashboard</a>
         <!--<a href="view_messages.php?email=<?php echo $email; ?>" class="red-dot">View Message</a>-->
@@ -338,45 +365,5 @@ mysqli_close($conn);
         <a href="payment.php?email=<?php echo $email; ?>">Make Payment</a>
         
     </div>
-    
-    <div id="container" class="container">
-    <div class="dashboard-box">
-        <h2>Welcome to Your Dashboard <?php echo $email; ?>!</h2>
-        <p>This is your client dashboard. You can view your project progress, provide suggestions, make payments, and update your profile here.</p>
-
-        <h3>Project Progress</h3>
-        <p>Project progress: <?php echo round($percentage, 2); ?>%</p>
-        <div class="message-container" id="messageContainer">
-            <a href="view_proposal.php?email=<?php echo $email; ?>" class="red-dot">View proposal</a>
-            <!--<p><a href="view_messages.php?email=<?php echo $email; ?>" class="red-dot">View Message</a></p>-->
-
-            <form id="downloadForm" action="download_deployment.php" method="get">
-        <input type="hidden" name="email" value="<?php echo $email; ?>">
-        <input type="hidden" name="downloaded" id="downloaded" value="0">
-        <button style="background-color: green; border: none; cursor: pointer;" type="submit" <?php echo $downloadDisabled; ?>>Download deployment</button>
-    </form>
-    <!-- Button for feedback -->
-    <form id="feedbackButtonForm" action="feedback_form.php" method="get" style="display: none;">
-        <input type="hidden" name="email" value="<?php echo $email; ?>">
-    </form>
-    <button id="feedbackButton" style="background-color: blue; border: none; cursor: pointer;" <?php echo $feedbackDisabled; ?> onclick="redirectToFeedback()">Feedback</button>
-
-        </div>
-    </div>
-</div>
-<script>
-    function redirectToFeedback() {
-        // Get the email value
-        var email = "<?php echo $email; ?>";
-        // Construct the URL with the email parameter
-        var url = "feedback_form.php?email=" + email;
-        // Redirect to the URL
-        window.location.href = url;
-        // Hide the button after it is clicked
-        document.getElementById("feedbackButton").style.display = "none";
-    }
-</script>
-
 </body>
-
 </html>

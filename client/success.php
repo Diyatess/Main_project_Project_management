@@ -1,4 +1,4 @@
-<?php 
+<?php
 session_start();
 ?>
 
@@ -22,8 +22,20 @@ session_start();
             <strong>Please note your payment id!</strong><?php echo $_SESSION['payment_id'];?>
         </div>
 
+        <?php
+        // Get the email from the URL
+        $email = isset($_GET['email']) ? $_GET['email'] : '';
+        //echo "<p>Email: $email</p>";
+        ?>
+
     </div>
 
-</body>
+    <script>
+        // Redirect to the client dashboard after 5 seconds
+        setTimeout(function(){
+            window.location.href = 'client_dashboard.php?email=<?php echo $email; ?>';
+        }, 3000); // 3000 milliseconds = 3 seconds
+    </script>
 
+</body>
 </html>

@@ -147,11 +147,11 @@ if (isset($_GET['email'])) {
             </a>
             <h2 style="color: #fff;padding: 26px;">Payment</h2>
     </header>
-<div id="mySidebar" class="sidebar">
+    <div id="mySidebar" class="sidebar">
         <a href="client_dashboard.php?email=<?php echo $email; ?>">Dashboard</a>
-        <a href="view_messages.php?email=<?php echo $email; ?>" class="red-dot">View Message</a>
-        <a href="sugg.html">Suggestions/Add-ons</a>
-
+        <!--<a href="view_messages.php?email=<?php echo $email; ?>" class="red-dot">View Message</a>-->
+        <a href="sugg.php?email=<?php echo $email; ?>">Suggestions/Add-ons</a>
+        <a href="viewmeeting.php?email=<?php echo $email; ?>">View Meeting</a>
         <a href="client_update.php?email=<?php echo $email; ?>">Update Profile</a>
         <a href="add_project.php?email=<?php echo $email; ?>">Add Project</a>
         <a href="payment.php?email=<?php echo $email; ?>">Make Payment</a>
@@ -207,12 +207,13 @@ if (isset($_GET['email'])) {
                     data: { payment_id: paymentid, amount: amount, description: description },
                     success: function (finalresponse) {
                         if (finalresponse == 'done') {
-                            window.location.href = "success.php";
+                            window.location.href = "success.php?email=" + clientEmail;
                         } else {
                             alert('Please check console.log to find error');
                             console.log(finalresponse);
                         }
                     },
+
                     error: function (xhr, status, error) {
                         console.log("Error:", xhr.responseText);
                     }

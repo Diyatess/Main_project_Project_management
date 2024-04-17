@@ -1,5 +1,5 @@
 <?php
-include('../conn.php'); 
+include('../conn.php');
 session_start();
 date_default_timezone_set("Asia/Calcutta");
 
@@ -20,9 +20,10 @@ if ($clientResult && mysqli_num_rows($clientResult) > 0) {
 
     // Insert data into the payment table
     $sql = "INSERT INTO payment (client_id, amount, description, payment_id) 
-            VALUES ('$clientid', '$amount', '$description', '$payment_id')";
-
-    $result = mysqli_query($conn, $sql);
+            VALUES (?, ?, ?, ?)";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmt, "iiss", $clientid, $amount, $description, $payment_id);
+    $result = mysqli_stmt_execute($stmt);
 
     if ($result) {
         echo 'done';

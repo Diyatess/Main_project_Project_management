@@ -231,11 +231,12 @@ mysqli_close($conn);
     <!-- Sidebar -->
     <div id="mySidebar" class="sidebar">
         <a href="client_dashboard.php?email=<?php echo $email; ?>">Dashboard</a>
-        <a href="view_message.php?email=<?php echo $email; ?>">Messages</a>
-        <a href="sugg.html">Suggestions/Add-ons</a>
-
+        <!--<a href="view_messages.php?email=<?php echo $email; ?>" class="red-dot">View Message</a>-->
+        <a href="sugg.php?email=<?php echo $email; ?>">Suggestions/Add-ons</a>
+        <a href="viewmeeting.php?email=<?php echo $email; ?>">View Meeting</a>
         <a href="client_update.php?email=<?php echo $email; ?>">Update Profile</a>
         <a href="add_project.php?email=<?php echo $email; ?>">Add Project</a>
+        <a href="payment.php?email=<?php echo $email; ?>">Make Payment</a>
         
     </div>
     </div>

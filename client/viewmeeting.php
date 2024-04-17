@@ -1,78 +1,57 @@
 <?php
-session_start();
 include('../conn.php');
 
-// Check if the email is provided in the URL
+// Check if the email ID is provided in the URL
 if (isset($_GET['email'])) {
     $email = $_GET['email'];
+
+    // Fetch meetings for the user with the provided email ID from the 'meetings' table
+    $sqlMeetings = "SELECT m.*,c.email FROM meetings m 
+    JOIN client c ON m.client_id = c.id
+    WHERE email = '$email'";
+    $resultMeetings = $conn->query($sqlMeetings);
+
+    if ($resultMeetings === false) {
+        // Handle the SQL error, such as redirecting to an error page
+        echo "Error: " . mysqli_error($conn);
+        exit;
+    }
+
+    $meetings = [];
+
+    if ($resultMeetings->num_rows > 0) {
+        while ($rowMeeting = $resultMeetings->fetch_assoc()) {
+            $meetings[] = $rowMeeting;
+        }
+    }
 } else {
-    echo "Email not provided in the URL.";
+    // Redirect to an error page or handle the case where email is not provided
+    header("Location: error.php");
     exit;
 }
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Get project name and description from the form
-    $projectname = $_POST['projectname'];
-    $description = $_POST['description'];
-
-    // Check if the client's email already exists in the project_requests table
-    $checkStatusSql = "SELECT * FROM project_requests WHERE client_email = '$email'";
-    $result = $conn->query($checkStatusSql);
-
-    if ($result === false) {
-        // Handle query error
-        echo "Error in query: " . $conn->error;
-    } else {
-        // Check if there are any existing project requests for the client
-        if ($result->num_rows > 0) {
-            echo '<script>alert("Invalid request. Already sent a request.");</script>';
-        } else {
-            // Insert the project request into the project_requests table
-            $insertSql = "INSERT INTO project_requests (project_name, project_description, client_email, send_status) VALUES ('$projectname', '$description', '$email', 'Send')";
-
-            if ($conn->query($insertSql) === TRUE) {
-                // Get the auto-generated request_id from the last insert
-                $requestId = $conn->insert_id;
-
-                // Update the client's record with the request_id
-                $updateSql = "UPDATE client SET request_id = '$requestId' WHERE email = '$email'";
-
-                if ($conn->query($updateSql) === TRUE) {
-                    echo '<script>alert("Project request submitted successfully!");</script>';
-                    echo '<script>window.location.href = "client_dashboard.php?email=' . $email . '";</script>';
-                } else {
-                    echo "Error updating client record: " . $conn->error;
-                }
-            } else {
-                echo "Error inserting project request: " . $conn->error;
-            }
-        }
-    }
-
-    $conn->close();
-}
 ?>
-
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Client Project Request</title>
+    <title>View Meetings</title>
     <style>
    /* Style the sidebar */
    .sidebar {
     height: 100%;
     width: 250px;
     position: fixed;
-    top: 100px;
+    top: 76px;
     left: 0;
     background-color: #333;
     overflow-x: hidden;
     transition: 0.5s;
     text-align: left;
-    padding-top: 10px;
+    padding-top: 60px;
     color: #fff;
     z-index: 1;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Add a box shadow for depth */
@@ -128,6 +107,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     background-color: #ddd;
     color: black;
 }
+
 
 /* Updated CSS for the main content area */
 .container {
@@ -234,54 +214,66 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             margin-top: 10px;
         }
 
-form {
-    background-color: #fff;
-    padding: 20px;
-    border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-    width: 50%;
-}
-
-label {
-    font-weight: bold;
-}
-
-input[type="text"],
-textarea {
-    width: 100%;
-    padding: 8px;
-    margin: 8px 0;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-}
-
-button[type="submit"] {
-    background-color: #008cba;
-    color: #fff;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-}
-
-button[type="submit"]:hover {
-    background-color: #0056b3;
-}
-.edit-button {
-            background-color: #007bff;
-            color: #fff;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
+        /* New styles for the completion date */
+        .completion-date {
+            font-weight: bold;
+            color: #ff0000;
         }
-</style>
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #333;
+            color: #fff;
+        }
+    </style>
+    <script>
+        // Logout function
+        function logout() {
+            // Clear the session or perform any other necessary logout tasks
+            // Disable the ability to go back
+            history.pushState(null, null, window.location.href);
+            window.onpopstate = function (event) {
+                history.go(1);
+            };
+
+            // Redirect to the login page
+            window.location.replace("../login_client.php");
+        }
+
+    // Disable caching to prevent back button from showing the logged-in page
+    window.onload = function () {
+        window.history.forward();
+        document.onkeydown = function (e) {
+            if (e.keyCode === 9) {
+                return false;
+            }
+        };
+    }
+
+    // Redirect to the login page if the user tries to go back
+    window.addEventListener('popstate', function (event) {
+        window.location.replace("../login_client.php");
+    });
+    </script>
 </head>
 <body>
+<a class="navbar-brand" href="../index.php" style="float: left;">
+            <img src="../images/logo.png" alt="" />
+            <span> TaskMasters Hub</span>
+        </a>
 <header>
-    <a href="client_dashboard.php?email=<?php echo $email; ?>" style="float: right;"><button class="edit-button" type="button">Back</button></a>
-    <a class="navbar-brand" href="../index.php" style="float: left;"><img src="../images/logo.png" alt="" /><span> TaskMasters Hub</span></a>
-    <h2>Project Request</h2>
+    <h1>View Meetings </h1>
 </header>
 <div id="mySidebar" class="sidebar">
         <a href="client_dashboard.php?email=<?php echo $email; ?>">Dashboard</a>
@@ -293,23 +285,55 @@ button[type="submit"]:hover {
         <a href="payment.php?email=<?php echo $email; ?>">Make Payment</a>
         
     </div>
-<div class="container">
-       
-    <!-- Add a hidden input field to store the email -->
-    <input type="hidden" name="email" value="<?php echo $email; ?>">
-    
-    <label for="projectname">Project Name:</label>
-    <input type="text" name="projectname" required>
+    <div class="container">
+    <h2>Upcoming Meetings</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Agenda</th>
+                <th>Start Time</th>
+                <th>Date</th>
+                <th>Link</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach ($meetings as $meeting): ?>
+                <?php if (strtotime($meeting['date'] . ' ' . $meeting['start_time']) > time()): ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars($meeting['agenda']); ?></td>
+                        <td><?php echo $meeting['start_time']; ?></td>
+                        <td><?php echo $meeting['date']; ?></td>
+                        <td><a href="<?php echo $meeting['meeting_link']; ?>" target="_blank"><?php echo parse_url($meeting['meeting_link'], PHP_URL_HOST); ?></a></td>
+                    </tr>
+                <?php endif; ?>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
 
-    <label for="description">Project Description:</label>
-    <textarea name="description" rows="4" required></textarea>
+    <h2>Past Meetings</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Agenda</th>
+                <th>Start Time</th>
+                <th>Date</th>
+                <th>Link</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach ($meetings as $meeting): ?>
+                <?php if (strtotime($meeting['date'] . ' ' . $meeting['start_time']) <= time()): ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars($meeting['agenda']); ?></td>
+                        <td><?php echo $meeting['start_time']; ?></td>
+                        <td><?php echo $meeting['date']; ?></td>
+                        <td><a href="<?php echo $meeting['meeting_link']; ?>" target="_blank"><?php echo parse_url($meeting['meeting_link'], PHP_URL_HOST); ?></a></td>
+                    </tr>
+                <?php endif; ?>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
+</div>
 
-    <div class="button-container">
-        <button type="submit">Submit Request</button>
-    </div>
-    
-    </div>
 </body>
 </html>
-
-
